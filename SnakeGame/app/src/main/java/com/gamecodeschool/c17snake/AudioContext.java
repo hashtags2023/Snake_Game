@@ -7,13 +7,8 @@
  * between different audio implementations. The AudioContext delegates audio-related operations
  * to an implementation of the AudioStrategy interface.
  */
-
 package com.gamecodeschool.c17snake;
 
-// ... rest of your code ...
-
-package com.example.snake;
-// AudioContext class
 public class AudioContext {
     private Audio audio;
 
