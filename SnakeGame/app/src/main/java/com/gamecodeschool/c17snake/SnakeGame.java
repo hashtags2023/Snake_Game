@@ -8,8 +8,10 @@ import android.graphics.Point;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.media.MediaPlayer;
 
 class SnakeGame extends SurfaceView implements Runnable{
+    private final AudioContext audioContext = new AudioContext();
 
     // Objects for the game loop/thread
     private Thread mThread = null;
@@ -32,10 +34,12 @@ class SnakeGame extends SurfaceView implements Runnable{
 
     // A snake ssss
     private final Snake mSnake;
-    // And an apple
+    // An apple
     private final Apple mApple;
     private final SoundManager soundManager;
 
+    // MediaPlayer for background music
+    private MediaPlayer mediaPlayer;
 
     // This is the constructor method that gets called
     // from SnakeActivity
@@ -48,13 +52,19 @@ class SnakeGame extends SurfaceView implements Runnable{
         mNumBlocksHigh = size.y / blockSize;
 
         // Initialize the SoundPool
-
          this.soundManager = soundManager;
 
         // Initialize the drawing objects
         mSurfaceHolder = getHolder();
         mPaint = new Paint();
 
+        // Initialize the MediaPlayer for background music
+        mediaPlayer = MediaPlayer.create(context, R.raw.backgroundmusic);
+        mediaPlayer.setLooping(true);
+
+        // Set the default audio strategy
+        audioContext.setAudio(new SimpleAudio());
+    }
         // Call the constructors of our two game objects
         mApple = new Apple(context,
                 new Point(NUM_BLOCKS_WIDE,
@@ -68,19 +78,18 @@ class SnakeGame extends SurfaceView implements Runnable{
 
     }
 
-
     // Called to start a new game
     public void newGame() {
+
         NewGame.startGame(this);
     }
-
 
     // Handles the game loop
     @Override
     public void run() {
+
         GameLoop.gameLoop(this);
     }
-
 
     // Check to see if it is time for an update
     public boolean updateRequired() {
@@ -106,7 +115,6 @@ class SnakeGame extends SurfaceView implements Runnable{
         return false;
     }
 
-
     // Update all the game objects
     public void update() {
 
@@ -126,6 +134,10 @@ class SnakeGame extends SurfaceView implements Runnable{
             soundManager.playEatSound();
         }
 
+        /* Play sounds using the AudioContext */
+        audioContext.playEatSound();
+        audioContext.playCrashSound();
+
         // Did the snake die?
         if (mSnake.detectDeath()) {
             // Pause the game ready to start again
@@ -135,7 +147,6 @@ class SnakeGame extends SurfaceView implements Runnable{
         }
 
     }
-
 
     // Do all the drawing
     public void draw() {
@@ -170,7 +181,9 @@ class SnakeGame extends SurfaceView implements Runnable{
         }
         return 0;
     }
-    @Override
+
+    // Touch event handing
+     @Override
     public boolean onTouchEvent(MotionEvent motionEvent) {
         if ((motionEvent.getAction() & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_UP) {
             if (mPaused) {
@@ -183,43 +196,46 @@ class SnakeGame extends SurfaceView implements Runnable{
         return true;
     }
 
+    // Pause the game
     public void pause() {
         mPlaying = false;
         try {
+            mediaPlayer.pause(); // Pause background music
             mThread.join();
         } catch (InterruptedException e) {
             // Error
         }
     }
 
-
-    // Start the thread
+    // Resume the game
     public void resume() {
         mPlaying = true;
+        mediaPlayer.start(); // Start or resume background music
         mThread = new Thread(this);
         mThread.start();
     }
 
+    // Check if the game is playing
     public boolean isPlaying() {
         return mPlaying;
     }
-
+    // Check if the game is paused
     public boolean isPaused() {
         return mPaused;
     }
-
+    // Getter for Snake
     public Snake getSnake() {
         return mSnake;
     }
-
+    // Getter for Apple
     public Apple getApple() {
         return mApple;
     }
-
+    // Setter for the score
     public void setScore(int num) {
         mScore = num;
     }
-
+    // Setter for the next frame time
     public void setmNextFrameTime(long l) {
         mNextFrameTime = l;
     }
