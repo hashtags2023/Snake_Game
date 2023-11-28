@@ -38,6 +38,9 @@ class SnakeGame extends SurfaceView implements Runnable{
     private final Snake mSnake;
     // An apple
     private final Apple mApple;
+
+    // Obstacle
+    private Obstacle mObstacle;
     private final SoundManager soundManager;
 
     // MediaPlayer for background music
@@ -170,17 +173,22 @@ class SnakeGame extends SurfaceView implements Runnable{
             mCanvas.drawText("" + mScore, 20, 120, mPaint);
             mApple.draw(mCanvas, mPaint);
             mSnake.draw(mCanvas, mPaint);
+            // Draw the obstalce
+            mObstacle.draw(mCanvas);
+
+            // Check if game is over
+            if (gameOver) {
+                mCanvas.drawText("Game Over!", 200, 300, mPaint);
+                mCanvas.drawText("Final Score: " + mScore, 200, 400, mPaint);
+                mCanvas.drawText("Tap to Restart", 200, 500, mPaint);
+            }
+            // If game is not over, check if it is paused
             if(mPaused){
                 mPaint.setColor(getColor("White"));
                 mPaint.setTextSize(250);
                 mCanvas.drawText(getResources().
                                 getString(R.string.tap_to_play),
                         200, 700, mPaint);
-            }
-            if (gameOver) {
-                mCanvas.drawText("Game Over!", 200, 300, mPaint);
-                mCanvas.drawText("Final Score: " + mScore, 200, 400, mPaint);
-                mCanvas.drawText("Tap to Restart", 200, 500, mPaint);
             }
             mSurfaceHolder.unlockCanvasAndPost(mCanvas);
         }
