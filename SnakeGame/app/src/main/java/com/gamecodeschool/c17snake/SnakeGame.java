@@ -21,6 +21,8 @@ class SnakeGame extends SurfaceView implements Runnable{
     private volatile boolean mPlaying = false;
     private volatile boolean mPaused = true;
 
+    private boolean gameOver = false;
+
 
     // The size in segments of the playable area
     private final int NUM_BLOCKS_WIDE = 40;
@@ -52,7 +54,7 @@ class SnakeGame extends SurfaceView implements Runnable{
         mNumBlocksHigh = size.y / blockSize;
 
         // Initialize the SoundPool
-         this.soundManager = soundManager;
+        this.soundManager = soundManager;
 
         // Initialize the drawing objects
         mSurfaceHolder = getHolder();
@@ -65,23 +67,28 @@ class SnakeGame extends SurfaceView implements Runnable{
         // Set the default audio strategy
         audioContext.setAudio(new SimpleAudio());
     }
-        // Call the constructors of our two game objects
-        mApple = new Apple(context,
+    // Call the constructors of our two game objects
+    mApple = new Apple(context,
                 new Point(NUM_BLOCKS_WIDE,
-                        mNumBlocksHigh),
-                blockSize);
+                       mNumBlocksHigh),
+    blockSize);
 
-        mSnake = new Snake(context,
+    mSnake = new Snake(context,
                 new Point(NUM_BLOCKS_WIDE,
-                        mNumBlocksHigh),
-                blockSize);
+                       mNumBlocksHigh),
+    blockSize);
 
-    }
+}
 
     // Called to start a new game
     public void newGame() {
 
         NewGame.startGame(this);
+    }
+
+    // Handles game over
+    public void gameOver() {
+        gameOver = true;
     }
 
     // Handles the game loop
@@ -143,7 +150,10 @@ class SnakeGame extends SurfaceView implements Runnable{
             // Pause the game ready to start again
             soundManager.playCrashSound();
 
-            mPaused =true;
+            mPaused = true;
+
+            // Set the game to game over state after death
+            gameOver();
         }
 
     }
@@ -167,6 +177,11 @@ class SnakeGame extends SurfaceView implements Runnable{
                                 getString(R.string.tap_to_play),
                         200, 700, mPaint);
             }
+            if (gameOver) {
+                mCanvas.drawText("Game Over!", 200, 300, mPaint);
+                mCanvas.drawText("Final Score: " + mScore, 200, 400, mPaint);
+                mCanvas.drawText("Tap to Restart", 200, 500, mPaint);
+            }
             mSurfaceHolder.unlockCanvasAndPost(mCanvas);
         }
     }
@@ -183,17 +198,23 @@ class SnakeGame extends SurfaceView implements Runnable{
     }
 
     // Touch event handing
-     @Override
+    @Override
     public boolean onTouchEvent(MotionEvent motionEvent) {
         if ((motionEvent.getAction() & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_UP) {
-            if (mPaused) {
+            if (gameOver) {
+                gameOver = false;
+                mPaused = false;
+                newGame();
+                return true;
+            } else if (mPaused) {
                 mPaused = false;
                 newGame();
                 return true;
             }
+
             mSnake.switchSnackMovement(motionEvent);
-        }
-        return true;
+        } else if (game)
+            return true;
     }
 
     // Pause the game
