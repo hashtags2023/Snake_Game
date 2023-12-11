@@ -3,7 +3,7 @@
  * Date: 11/21/21
  * Description: [Brief description of the purpose of this file or class]
  */
-package com.example.snake;
+package com.gamecodeschool.c17snake;
 
 /**
  * Audio interface representing the contract for audio-related functionality.

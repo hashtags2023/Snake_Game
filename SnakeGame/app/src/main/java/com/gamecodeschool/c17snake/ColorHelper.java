@@ -1,3 +1,7 @@
+package com.gamecodeschool.c17snake;
+
+import android.graphics.Color;
+
 public class ColorHelper {
 
     public static int getColor(String colorName) {

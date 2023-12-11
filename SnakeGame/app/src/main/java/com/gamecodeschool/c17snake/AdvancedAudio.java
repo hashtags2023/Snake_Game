@@ -1,4 +1,6 @@
-    public class AdvancedAudio implements Audio {
+package com.gamecodeschool.c17snake;
+
+public class AdvancedAudio implements Audio {
         @Override
         public void playEatSound() {
             // Implementation for playing a different eat sound

@@ -6,7 +6,7 @@
  *              You may extend or replace this class with more sophisticated implementations.
  */
 
-package com.example.snake;
+package com.gamecodeschool.c17snake;
 
 /**
  * SimpleAudio class implementing the Audio interface.

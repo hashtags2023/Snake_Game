@@ -7,30 +7,34 @@ import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Point;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.MotionEvent;
 
 import java.util.ArrayList;
 
-class Snake {
+class Snake implements updateView{
 
     // The location in the grid of all the segments
-    private ArrayList<Point> segmentLocations;
+    public final ArrayList<Point> segmentLocations;
 
     // How big is each segment of the snake?
-    private int mSegmentSize;
+    private float snakeSpeed = 1;
+    Handler handler =   new Handler(Looper.getMainLooper());
+    private final int mSegmentSize;
 
     // How big is the entire grid
-    private Point mMoveRange;
+    private final Point mMoveRange;
 
     // Where is the centre of the screen
     // horizontally in pixels?
-    private int halfWayPoint;
+    private final int halfWayPoint;
 
-    // For tracking movement SnackMovement
+    // For tracking movement snakeMovement
 
 
-    // Start by SnackMovement to the right
-    private SnackMovement snackMovement = SnackMovement.RIGHT;
+    // Start by snakeMovement to the right
+    private SnakeMovement snakeMovement = SnakeMovement.RIGHT;
 
     // A bitmap for each direction the head can face
     private Bitmap mBitmapHeadRight;
@@ -38,8 +42,8 @@ class Snake {
     private Bitmap mBitmapHeadUp;
     private Bitmap mBitmapHeadDown;
 
-    // A bitmap for the body
     private Bitmap mBitmapBody;
+    public boolean isSnakeHasPowerOfINVULNERABILITY = false;
 
 
     Snake(Context context, Point mMoveRange, int mSegmentSize) {
@@ -57,7 +61,7 @@ class Snake {
                 .decodeResource(context.getResources(),
                         R.drawable.head);
 
-        // Create 3 more versions of the head for different SnackMovements
+        // Create 3 more versions of the head for different snakeMovements
         mBitmapHeadLeft = BitmapFactory
                 .decodeResource(context.getResources(),
                         R.drawable.head);
@@ -112,20 +116,21 @@ class Snake {
     }
 
     // Get the snake ready for a new game
-    void reset(int w, int h) {
+    void reset(int width, int height) {
 
-        // Reset the SnackMovement
-        snackMovement = SnackMovement.RIGHT;
+        // Reset the snakeMovement
+        snakeMovement = SnakeMovement.RIGHT;
+        isSnakeHasPowerOfINVULNERABILITY = false;
 
         // Delete the old contents of the ArrayList
         segmentLocations.clear();
 
         // Start with a single snake segment
-        segmentLocations.add(new Point(w / 2, h / 2));
+        segmentLocations.add(new Point(width / 2, height / 2));
     }
 
-
-    void move() {
+    @Override
+    public void move() {
         // Move the body
         // Start at the back and move it
         // to the position of the segment in front of it
@@ -137,26 +142,27 @@ class Snake {
             segmentLocations.get(i).y = segmentLocations.get(i - 1).y;
         }
 
-        // Move the head in the appropriate SnackMovement
+        // Move the head in the appropriate snakeMovement
         // Get the existing head position
         Point p = segmentLocations.get(0);
 
         // Move it appropriately
-        switch (snackMovement) {
+        switch (snakeMovement) {
             case UP:
-                p.y--;
+
+                p.y-=snakeSpeed;
                 break;
 
             case RIGHT:
-                p.x++;
+                p.x += snakeSpeed;
                 break;
 
             case DOWN:
-                p.y++;
+                p.y += snakeSpeed;
                 break;
 
             case LEFT:
-                p.x--;
+                p.x -=snakeSpeed;
                 break;
         }
 
@@ -169,8 +175,10 @@ class Snake {
                 segmentLocations.get(0).y == -1 ||
                 segmentLocations.get(0).y > mMoveRange.y;
 
-        // Hit any of the screen edges
-
+        if (dead && isSnakeHasPowerOfINVULNERABILITY){
+            handleWallCollision();
+            return false;
+        }
         // Eaten itself?
         for (int i = segmentLocations.size() - 1; i > 0; i--) {
             // Have any of the sections collided with the head
@@ -183,7 +191,23 @@ class Snake {
         }
         return dead;
     }
+    private void handleWallCollision() {
 
+        Point head = segmentLocations.get(0);
+
+        if (head.x < 0) {
+            head.x = mMoveRange.x - 1;
+        } else if (head.x >= mMoveRange.x) {
+            head.x = 0;
+        }
+
+        if (head.y < 0) {
+            head.y = mMoveRange.y - 1;
+        } else if (head.y >= mMoveRange.y) {
+            head.y = 0;
+        }
+
+    }
     boolean checkDinner(Point l) {
         //if (snakeXs[0] == l.x && snakeYs[0] == l.y) {
         if (segmentLocations.get(0).x == l.x &&
@@ -199,14 +223,14 @@ class Snake {
         }
         return false;
     }
-
-    void draw(Canvas canvas, Paint paint) {
+    @Override
+    public void draw(Canvas canvas, Paint paint) {
 
         // Don't run this code if ArrayList has nothing in it
         if (!segmentLocations.isEmpty()) {
             // All the code from this method goes here
             // Draw the head
-            switch (snackMovement) {
+            switch (snakeMovement) {
                 case RIGHT:
                     canvas.drawBitmap(mBitmapHeadRight,
                             segmentLocations.get(0).x
@@ -251,39 +275,40 @@ class Snake {
         }
     }
 
-
     // Handle changing direction
-    void switchSnackMovement(MotionEvent motionEvent) {
+    void switchSnakeMovement(MotionEvent motionEvent) {
 
         // Is the tap on the right hand side?
         if (motionEvent.getX() >= halfWayPoint) {
-            switch (snackMovement) {
+            switch (snakeMovement) {
                 // Rotate right
                 case UP:
                 case DOWN:
-                    snackMovement = SnackMovement.RIGHT;
+                    snakeMovement = SnakeMovement.RIGHT;
                     break;
 
                 case RIGHT:
 
                 case LEFT:
-                    snackMovement = SnackMovement.UP;
+                    snakeMovement = SnakeMovement.UP;
                     break;
 
             }
         } else {
             // Rotate left
-            switch (snackMovement) {
+            switch (snakeMovement) {
                 case UP:
                 case DOWN:
-                    snackMovement = SnackMovement.LEFT;
+                    snakeMovement = SnakeMovement.LEFT;
                     break;
                 case RIGHT:
                 case LEFT:
-                    snackMovement = SnackMovement.DOWN;
+                    snakeMovement = SnakeMovement.DOWN;
                     break;
 
             }
         }
     }
+
+
 }

@@ -1,14 +1,21 @@
 package com.gamecodeschool.c17snake;
 
+import android.app.Dialog;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
+import android.graphics.drawable.Drawable;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.media.MediaPlayer;
+import android.view.View;
+
+import androidx.vectordrawable.graphics.drawable.VectorDrawableCompat;
 
 class SnakeGame extends SurfaceView implements Runnable{
     private final AudioContext audioContext = new AudioContext();
@@ -46,6 +53,13 @@ class SnakeGame extends SurfaceView implements Runnable{
     // MediaPlayer for background music
     private MediaPlayer mediaPlayer;
 
+    private int pauseButtonX;
+    private int pauseButtonY;
+    private int pauseButtonSize = 100;
+    private PowerUp powerUp;
+
+    long TARGET_FPS = 10;
+
     // This is the constructor method that gets called
     // from SnakeActivity
     public SnakeGame(Context context, Point size , SoundManager soundManager) {
@@ -59,6 +73,8 @@ class SnakeGame extends SurfaceView implements Runnable{
         // Initialize the SoundPool
         this.soundManager = soundManager;
 
+        powerUp = new PowerUp(new Point(NUM_BLOCKS_WIDE, mNumBlocksHigh),getContext() , blockSize);
+
         // Initialize the drawing objects
         mSurfaceHolder = getHolder();
         mPaint = new Paint();
@@ -68,25 +84,23 @@ class SnakeGame extends SurfaceView implements Runnable{
         mediaPlayer.setLooping(true);
 
         // Set the default audio strategy
-        audioContext.setAudio(new SimpleAudio());
-    }
+        audioContext.setAudio(new SimpleAudio(soundManager));
+
     // Call the constructors of our two game objects
-    mApple = new Apple(context,
-                new Point(NUM_BLOCKS_WIDE,
-                       mNumBlocksHigh),
-    blockSize);
+    mApple = new Apple(context, new Point(NUM_BLOCKS_WIDE, mNumBlocksHigh), blockSize);
 
     mSnake = new Snake(context,
                 new Point(NUM_BLOCKS_WIDE,
                        mNumBlocksHigh),
     blockSize);
 
-}
+    }
 
     // Called to start a new game
     public void newGame() {
 
         NewGame.startGame(this);
+        powerUp.reset();
     }
 
     // Handles game over
@@ -140,13 +154,46 @@ class SnakeGame extends SurfaceView implements Runnable{
             // Add to  mScore
             mScore = mScore + 1;
 
+            if (!powerUp.isPowerUpShowing){
+                powerUp.move();
+                powerUp.EnableToShowPowerUp();
+            }
+
             // Play a sound
             soundManager.playEatSound();
         }
+        else if(mSnake.checkDinner(powerUp.getLocation())){
+
+            powerUp.move();
+            powerUp.hidePowerUp();
+            switch (powerUp.type){
+                case SPEED_UP:
+                    TARGET_FPS = 15;
+                    new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            TARGET_FPS = 10;
+                        }
+                    },5000);
+                    break;
+                case INVULNERABILITY:
+                    mSnake.isSnakeHasPowerOfINVULNERABILITY = true;
+                    new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            mSnake.isSnakeHasPowerOfINVULNERABILITY =false;
+                        }
+                    },5000);
+                    break;
+            }
+            powerUp.setSnakeHasPower();
+            //soundManager.playEatSound();
+
+        }
 
         /* Play sounds using the AudioContext */
-        audioContext.playEatSound();
-        audioContext.playCrashSound();
+        //audioContext.playEatSound();
+        //audioContext.playCrashSound();
 
         // Did the snake die?
         if (mSnake.detectDeath()) {
@@ -174,7 +221,17 @@ class SnakeGame extends SurfaceView implements Runnable{
             mApple.draw(mCanvas, mPaint);
             mSnake.draw(mCanvas, mPaint);
             // Draw the obstalce
-            mObstacle.draw(mCanvas);
+            // mObstacle.draw(mCanvas);
+
+            if (powerUp.isPowerUpShowing){
+                powerUp.draw(mCanvas,mPaint);
+            }
+
+            Drawable pauseIconDrawable = VectorDrawableCompat.create(getResources(), R.drawable.ic_pause, null);
+            if (pauseIconDrawable != null) {
+                pauseIconDrawable.setBounds(pauseButtonX, pauseButtonY, pauseButtonX + pauseButtonSize, pauseButtonY + pauseButtonSize);
+                pauseIconDrawable.draw(mCanvas);
+            }
 
             // Check if game is over
             if (gameOver) {
@@ -184,12 +241,23 @@ class SnakeGame extends SurfaceView implements Runnable{
             }
             // If game is not over, check if it is paused
             if(mPaused){
+/*                mPaint.setColor(getColor("White"));
+                mPaint.setTextSize(250);
+                mCanvas.drawText(getResources().
+                                getString(R.string.tap_to_play),
+                        200, 700, mPaint);*/
                 mPaint.setColor(getColor("White"));
                 mPaint.setTextSize(250);
                 mCanvas.drawText(getResources().
                                 getString(R.string.tap_to_play),
                         200, 700, mPaint);
             }
+
+            if (gameOver && !mPaused) {
+                newGame();
+                gameOver = false;
+            }
+
             mSurfaceHolder.unlockCanvasAndPost(mCanvas);
         }
     }
@@ -208,7 +276,7 @@ class SnakeGame extends SurfaceView implements Runnable{
     // Touch event handing
     @Override
     public boolean onTouchEvent(MotionEvent motionEvent) {
-        if ((motionEvent.getAction() & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_UP) {
+ /*       if ((motionEvent.getAction() & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_UP) {
             if (gameOver) {
                 gameOver = false;
                 mPaused = false;
@@ -220,9 +288,54 @@ class SnakeGame extends SurfaceView implements Runnable{
                 return true;
             }
 
-            mSnake.switchSnackMovement(motionEvent);
-        } else if (game)
+            mSnake.switchSnakeMovement(motionEvent);
+        } else if (game) {
             return true;
+        }*/
+        float touchX = motionEvent.getX();
+        float touchY = motionEvent.getY();
+
+        if ((motionEvent.getAction() & MotionEvent.ACTION_UP) == MotionEvent.ACTION_UP) {
+            if (mPaused) {
+                mPaused = false;
+                newGame();
+
+                return true;
+            } else if (isClickPauseButton(touchX, touchY)) {
+                pause();
+                showResumeDialog();
+            } else {
+                mSnake.switchSnakeMovement(motionEvent);
+            }
+            return true;
+        }
+        return true;
+    }
+
+    private void showResumeDialog() {
+        Dialog dialog = new Dialog(getContext());
+        dialog.setContentView(R.layout.dilaog_resume);
+        dialog.findViewById(R.id.newGameButton).setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                newGame();
+                dialog.dismiss();
+            }
+        });
+
+        dialog.findViewById(R.id.resumeButton).setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                resume();
+                dialog.dismiss();
+            }
+        });
+        dialog.show();
+    }
+
+    private boolean isClickPauseButton(float x, float y) {
+        return x >= pauseButtonX && x <= pauseButtonX + pauseButtonSize &&
+                y >= pauseButtonY && y <= pauseButtonY + pauseButtonSize;
     }
 
     // Pause the game
