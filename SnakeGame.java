@@ -1,20 +1,14 @@
 package com.gamecodeschool.c17snake;
 
-import android.app.Dialog;
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
-import android.graphics.drawable.Drawable;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import android.view.View;
-
-import androidx.vectordrawable.graphics.drawable.VectorDrawableCompat;
 
 class SnakeGame extends SurfaceView implements Runnable{
 
@@ -33,6 +27,10 @@ class SnakeGame extends SurfaceView implements Runnable{
 
     // How many points does the player have
     private int mScore;
+    //HighScore feature
+    private int mHighscore;
+
+    private SharedPreferences prefs;
 
     private final SurfaceHolder mSurfaceHolder;
     private final Paint mPaint;
@@ -42,52 +40,34 @@ class SnakeGame extends SurfaceView implements Runnable{
     // And an apple
     private final Apple mApple;
     private final SoundManager soundManager;
-    private int pauseButtonX;
-    private int pauseButtonY;
-    private int pauseButtonSize = 100;
+
 
     // This is the constructor method that gets called
     // from SnakeActivity
-    public SnakeGame(Context context, Point size , SoundManager soundManager) {
+    public SnakeGame(Context context, Point size, SoundManager soundManager) {
         super(context);
 
+        // Work out how many pixels each block is
         int blockSize = size.x / NUM_BLOCKS_WIDE;
+        // How many blocks of the same size will fit into the height
         mNumBlocksHigh = size.y / blockSize;
-        pauseButtonX = size.x - pauseButtonSize - 50; // Adjust the margin as needed
-        pauseButtonY = 30;
-        // Initialize the SoundPool
 
-         this.soundManager = soundManager;
+        // Initialize the SoundPool
+        this.soundManager = soundManager;
 
         // Initialize the drawing objects
         mSurfaceHolder = getHolder();
         mPaint = new Paint();
 
-        // Call the constructors of our two game object
+        // Initialize SharedPreferences
+        prefs = context.getSharedPreferences("GamePrefs", Context.MODE_PRIVATE);
 
-        mApple = new Apple.AppleBuilder(context)
-                .setSpawnRange(new Point(NUM_BLOCKS_WIDE, mNumBlocksHigh))
-                .setSize(blockSize)
-                .setType(AppleType.GOOD)
-                .build();
+        // Call the constructors of our two game objects
+        mApple = new Apple(context, new Point(NUM_BLOCKS_WIDE, mNumBlocksHigh), blockSize);
+        mSnake = new Snake(context, new Point(NUM_BLOCKS_WIDE, mNumBlocksHigh), blockSize);
 
-// Create a bad apple with a different bitmap
-        Bitmap badAppleBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.bad_apple);
-        badAppleBitmap = Bitmap.createScaledBitmap(badAppleBitmap, blockSize, blockSize, false);
-
-        //Use Bad Apple as per requirement
-        Apple badApple = new Apple.AppleBuilder(context)
-                .setSpawnRange(new Point(NUM_BLOCKS_WIDE, mNumBlocksHigh))
-                .setSize(blockSize)
-                .setType(AppleType.BAD)
-                .setBitmap(badAppleBitmap)
-                .build();
-
-        mSnake = new Snake(context,
-                new Point(NUM_BLOCKS_WIDE,
-                        mNumBlocksHigh),
-                blockSize);
-
+        // Initialize the highscore from SharedPreferences
+        mHighscore = prefs.getInt("highscore", 0);
     }
 
 
@@ -97,7 +77,8 @@ class SnakeGame extends SurfaceView implements Runnable{
         // reset the snake
         mSnake.reset(NUM_BLOCKS_WIDE, mNumBlocksHigh);
 
-        mApple.move();
+        // Get the apple ready for dinner
+        mApple.spawn();
 
         // Reset the mScore
         mScore = 0;
@@ -158,10 +139,20 @@ class SnakeGame extends SurfaceView implements Runnable{
         if(mSnake.checkDinner(mApple.getLocation())){
             // This reminds me of Edge of Tomorrow.
             // One day the apple will be ready!
-            mApple.move();
+            mApple.spawn();
 
             // Add to  mScore
             mScore = mScore + 1;
+
+            // Update highscore if necessary
+            if (mScore > mHighscore) {
+                mHighscore = mScore;
+
+                // Save highscore to preferences
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putInt("highscore", mHighscore);
+                editor.apply();
+            }
 
             // Play a sound
             soundManager.playEatSound();
@@ -188,16 +179,11 @@ class SnakeGame extends SurfaceView implements Runnable{
             mPaint.setColor(getColor("White"));
             mPaint.setTextSize(120);
             mCanvas.drawText("" + mScore, 20, 120, mPaint);
+
+            //Display the Highscore
+            mCanvas.drawText("Highscore: " + mHighscore,20,240,mPaint);
             mApple.draw(mCanvas, mPaint);
             mSnake.draw(mCanvas, mPaint);
-            // Draw the pause button using an icon
-            // Draw the pause button using an icon
-            Drawable pauseIconDrawable = VectorDrawableCompat.create(getResources(), R.drawable.ic_pause, null);
-            if (pauseIconDrawable != null) {
-                pauseIconDrawable.setBounds(pauseButtonX, pauseButtonY, pauseButtonX + pauseButtonSize, pauseButtonY + pauseButtonSize);
-                pauseIconDrawable.draw(mCanvas);
-            }
-
             if(mPaused){
                 mPaint.setColor(getColor("White"));
                 mPaint.setTextSize(250);
@@ -221,61 +207,17 @@ class SnakeGame extends SurfaceView implements Runnable{
     }
     @Override
     public boolean onTouchEvent(MotionEvent motionEvent) {
-        float touchX = motionEvent.getX();
-        float touchY = motionEvent.getY();
-
-        if ((motionEvent.getAction() & MotionEvent.ACTION_UP) == MotionEvent.ACTION_UP) {
+        if ((motionEvent.getAction() & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_UP) {
             if (mPaused) {
                 mPaused = false;
                 newGame();
-
                 return true;
-            } else if (isClickPauseButton(touchX, touchY)) {
-                pause();
-                showResumeDialog();
-            } else {
-                mSnake.switchSnakeMovement(motionEvent);
             }
-            return true;
+            mSnake.switchSnackMovement(motionEvent);
         }
         return true;
-
-//        if ((motionEvent.getAction() & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_UP) {
-//            if (mPaused) {
-//                mPaused = false;
-//                newGame();
-//                return true;
-//            }
-//            mSnake.switchSnakeMovement(motionEvent);
-//        }
-//        return true;
     }
 
-    private void showResumeDialog() {
-        Dialog dialog = new Dialog(getContext());
-        dialog.setContentView(R.layout.dilaog_resume);
-        dialog.findViewById(R.id.newGameButton).setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                newGame();
-                dialog.dismiss();
-            }
-        });
-
-        dialog.findViewById(R.id.resumeButton).setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                resume();
-                dialog.dismiss();
-            }
-        });
-        dialog.show();
-    }
-
-    private boolean isClickPauseButton(float x, float y) {
-        return x >= pauseButtonX && x <= pauseButtonX + pauseButtonSize &&
-                y >= pauseButtonY && y <= pauseButtonY + pauseButtonSize;
-    }
     public void pause() {
         mPlaying = false;
         try {
