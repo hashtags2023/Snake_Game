@@ -2,6 +2,7 @@ package com.gamecodeschool.c17snake;
 
 import android.app.Dialog;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -37,6 +38,13 @@ class SnakeGame extends SurfaceView implements Runnable{
 
     // How many points does the player have
     private int mScore;
+
+    // HighScore feature
+    private int mHighscore;
+    private SharedPreferences prefs;
+
+    // Leaderboard feature
+    private LeaderboardManager leaderboardManager;
 
     private final SurfaceHolder mSurfaceHolder;
     private final Paint mPaint;
@@ -82,6 +90,12 @@ class SnakeGame extends SurfaceView implements Runnable{
         // Initialize the MediaPlayer for background music
         mediaPlayer = MediaPlayer.create(context, R.raw.backgroundmusic);
         mediaPlayer.setLooping(true);
+
+        // Initialize the highscore from SharedPreferences
+        mHighscore = prefs.getInt("highscore", 0);
+
+        // Initialize LeaderboardManager
+        leaderboardManager = new LeaderboardManager(context);
 
         // Set the default audio strategy
         audioContext.setAudio(new SimpleAudio(soundManager));
@@ -154,6 +168,15 @@ class SnakeGame extends SurfaceView implements Runnable{
             // Add to  mScore
             mScore = mScore + 1;
 
+            // Update highscore if necessary
+            if (mScore > mHighscore) {
+                mHighscore = mScore;
+
+                // Save highscore to preferences
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putInt("highscore", mHighscore);
+                editor.apply();
+
             if (!powerUp.isPowerUpShowing){
                 powerUp.move();
                 powerUp.EnableToShowPowerUp();
@@ -200,6 +223,9 @@ class SnakeGame extends SurfaceView implements Runnable{
             // Pause the game ready to start again
             soundManager.playCrashSound();
 
+            // Update leaderboard
+            leaderboardManager.updateLeaderboard(mScore);
+
             mPaused = true;
 
             // Set the game to game over state after death
@@ -220,6 +246,10 @@ class SnakeGame extends SurfaceView implements Runnable{
             mCanvas.drawText("" + mScore, 20, 120, mPaint);
             mApple.draw(mCanvas, mPaint);
             mSnake.draw(mCanvas, mPaint);
+
+            // Display the Highscore
+            mCanvas.drawText("Highscore: " + mHighscore,20,240,mPaint);
+            
             // Draw the obstalce
             // mObstacle.draw(mCanvas);
 
@@ -251,6 +281,18 @@ class SnakeGame extends SurfaceView implements Runnable{
                 mCanvas.drawText(getResources().
                                 getString(R.string.tap_to_play),
                         200, 700, mPaint);
+
+                // Display the leaderboard
+                mPaint.setTextSize(60);
+                mPaint.setColor(getColor("White"));
+                mCanvas.drawText("Leaderboard", 20, 400, mPaint);
+
+                List<Integer> leaderboard = leaderboardManager.getLeaderboard();
+                int yPos = 500;
+
+                for (int i = 0; i < leaderboard.size(); i++) {
+                    mCanvas.drawText((i + 1) + ". " + leaderboard.get(i), 20, yPos, mPaint);
+                    yPos += 80;
             }
 
             if (gameOver && !mPaused) {
